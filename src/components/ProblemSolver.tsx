@@ -21,6 +21,7 @@ interface ProblemSolverProps {
 
 export function ProblemSolver({ problemDescription, hasApiKey, onStartOver }: ProblemSolverProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   
   const stepManager = useStepManager();
   const messageHistory = useMessageHistory();
@@ -118,24 +119,35 @@ def solution():
   };
 
   const handleSendMessage = async (message: string) => {
-    const userMessage = messageHistory.addUserMessage(message);
-    
+    // Show user message immediately
+    messageHistory.addUserMessage(message);
+
     if (hasApiKey) {
       try {
+        // Show typing indicator
+        setIsTyping(true);
+        
+        // Get conversation history BEFORE adding the current message
         const conversationHistory = messageHistory.getConversationHistory();
+        
         const response = await aiTutor.generateTutorResponse({
           problemDescription,
           currentStep: stepManager.currentStep,
           steps: stepManager.steps,
           conversationHistory,
+          currentUserMessage: message,
           userCode: codeExecution.currentCode,
           lastError: codeExecution.lastResult?.error
         });
         
+        // Hide typing indicator and show response
+        setIsTyping(false);
         setTimeout(() => {
           messageHistory.addTutorMessage(response.message);
         }, 500);
       } catch (error) {
+        // Hide typing indicator and show error response
+        setIsTyping(false);
         setTimeout(() => {
           messageHistory.addTutorMessage(messageService.createFallbackResponse(hasApiKey));
         }, 1000);
@@ -261,6 +273,7 @@ def solution():
               onSendMessage={handleSendMessage}
               onRequestHint={handleRequestHint}
               hintsRemaining={creditManager.getRemainingHints()}
+              isTyping={isTyping}
             />
           </div>
         </div>

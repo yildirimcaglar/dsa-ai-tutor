@@ -13,6 +13,7 @@ interface TutorContext {
     role: 'user' | 'assistant';
     content: string;
   }>;
+  currentUserMessage?: string;
   userCode?: string;
   lastError?: string;
 }
@@ -58,7 +59,7 @@ export class AITutorService {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-opus-4-20250514',
         max_tokens: maxTokens,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -99,6 +100,7 @@ export class AITutorService {
   }
 
   private buildTutorPrompt(context: TutorContext): string {
+    // Use the conversation history as previous context (excluding the current message)
     const conversationContext = context.conversationHistory.length > 0 
       ? `Previous conversation:\n${context.conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}\n\n`
       : '';
@@ -122,9 +124,13 @@ PROBLEM TO SOLVE:
 ${context.problemDescription}
 
 CONTEXT:
-${stepContext}${conversationContext}${codeContext}${errorContext}
+${stepContext}${conversationContext}${codeContext}${errorContext}${context.currentUserMessage ? `
+
+CURRENT USER MESSAGE:
+${context.currentUserMessage}` : ''}
 
 INSTRUCTIONS:
+${context.currentUserMessage ? '- Respond directly to the CURRENT USER MESSAGE above' : '- Provide an initial welcome message to start the tutoring session'}
 - Ask guiding questions to help the student think through the problem
 - Provide hints when they're stuck, but don't give away the solution
 - Be encouraging and supportive
@@ -234,11 +240,11 @@ SOLUTION:
 [Clean Python code that solves the problem]
 
 ALGORITHM_STEPS:
-[Step-by-step algorithm explanation as Python comments, specific to this problem]
+[Step-by-step algorithm explanation as Python comments, specific to this problem. All lines should begin with #]
 
 Requirements:
 - Solution: Clean, optimized Python code with time/space complexity comments
-- Algorithm Steps: Problem-specific step-by-step algorithm as Python comments (not generic)
+- Algorithm Steps: Problem-specific step-by-step algorithm as Python comments. (not generic). Do not include any other explanations at the end. 
 - Use descriptive variable names
 - Include edge case handling where relevant
 - Algorithm steps should be specific to this exact problem, not generic programming steps`;
